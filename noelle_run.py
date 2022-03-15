@@ -38,6 +38,7 @@ from dictionaryCode import translate,takeCommand
 ## RUn one time code to generate req.py file after every modification in UI file
 # pyrcc5 req.qrc -o req_rc.py
 
+from OCR import pdfReader
 
 # Define audtio engine properties
 engine = pyttsx3.init('sapi5')
@@ -77,7 +78,7 @@ class noelle(QThread):
         with sr.Microphone() as source:
             print("Listening...")
             r.adjust_for_ambient_noise(source, duration=0.25)
-            audioinput = r.listen(source,0,10)
+            audioinput = r.listen(source,0,5)
 
         try:
             print("Interpreting...")
@@ -178,19 +179,19 @@ class noelle(QThread):
 
 
             elif self.query.find('add reminder') != -1:
-                df = pd.DataFrame(columns=["timestamp", "reminder", "status"], index=[0])
+                df = pd.DataFrame(columns=["taskid","timestamp", "reminder", "status"], index=[0])
                 speakAction("Please speak valid reminder message to add in text format...")
 
                 self.query = self.speechtotext()
-                print(self.query)
                 ts = str(time.strftime("%A, %d %B %Y"))
                 remindermessage = self.query
+                df1 = pd.read_csv("reminderDoc.csv", sep=',')
+                df['taskid'][0] = df1.shape[0]+1
                 df['timestamp'][0] = ts
                 df['reminder'][0] = remindermessage
                 df['status'][0] = "incomplete"
-                print(remindermessage,"\n",ts)
-                print(df)
-                df1 = pd.read_csv("reminderDoc.csv", sep =',')
+
+                #df1 = pd.read_csv("reminderDoc.csv", sep =',')
                 df1 = pd.concat([df1, df])
                 try:
                     df1.to_csv("reminderDoc.csv",sep=',', index=False, header= True)
@@ -219,13 +220,20 @@ class noelle(QThread):
                     print (e)
 
 
-            elif 'play music' in self.query:
+            elif (self.query.find('listen music') != -1) :
                 speakAction("playing music from pc")
                 self.music_dir = "./music"
                 self.musics = os.listdir(self.music_dir)
                 os.startfile(os.path.join(self.music_dir, self.musics[0]))
-
-
+                
+            
+            
+            elif (self.query.find('read document') != -1) :
+                speakAction("Reading first file in PDF folder ...")
+                
+                # Call OCR class function to retrieve text to speak out and store in interim file
+                pdftext = pdfReader()
+                speakAction(pdftext)
 
 
 
@@ -284,6 +292,12 @@ class Main(QMainWindow,FROM_MAIN):
 
         self.ts = time.strftime("%A, %d %B %Y")
         self.pn = platform
+        
+        with open('interimtextdata.txt', 'r') as file:
+            datastring = file.read()
+
+        self.ocrmessage = datastring
+        
         #self.setGeometry(0, 0, 1100, 800)
         self.background.setPixmap(QPixmap("./stockimages/whitebackground.jpg"))
 
@@ -292,7 +306,10 @@ class Main(QMainWindow,FROM_MAIN):
 
         self.platformtext.setText("<font size=12 color='red'>" + self.pn + "</font>")
         self.platformtext.setFont(QFont(QFont('Arial', 6, QFont.Bold)))
-
+        
+        self.OCR.setText("<font size=8 color='black'>" + self.ocrmessage + "</font>")
+        self.OCR.setFont(QFont(QFont('Arial', 5, QFont.Bold)))
+        
 
         ##Table view
         df = pd.read_csv("reminderDoc.csv", sep =',')
